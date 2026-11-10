@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+build/
+dist/
+*.log
+.playwright-mcp/
+.venv/
+venv/
+.vscode/
+.idea/

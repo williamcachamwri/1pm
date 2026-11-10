@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>OnePM</RootNamespace>
+    <AssemblyName>OnePM</AssemblyName>
+    <Product>1pm</Product>
+    <ApplicationTitle>1pm</ApplicationTitle>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platform>x64</Platform>
+    <PlatformTarget>x64</PlatformTarget>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <RollForward>Major</RollForward>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.240923002" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="iphone-mirror-engine\**" />
+    <Page Remove="iphone-mirror-engine\**" />
+    <Compile Remove="pane-iphone-mirror-windows\**" />
+    <Page Remove="pane-iphone-mirror-windows\**" />
+    <Compile Remove="scratch\**" />
+    <Page Remove="scratch\**" />
+    <Compile Remove="docs\**" />
+    <Page Remove="docs\**" />
+  </ItemGroup>
+</Project>

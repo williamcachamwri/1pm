@@ -1,0 +1,77 @@
+# ==============================================================================
+# .gitignore for 1pm (WinUI 3 & Python CoreDevice Engine)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# .NET / C# / Visual Studio / MSBuild
+# ------------------------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+[Aa]pp[Pp]ackages/
+[Bb]undle[Aa]rtifacts/
+Package.StoreAssociation.xml
+_UpgradeReport_Files/
+[Bb]uild[Ll]og.*
+*.user
+*.suo
+*.userosscache
+*.userprefs
+*.sln.docstates
+*.publishsettings
+
+# Visual Studio & JetBrains IDE Directories
+.vs/
+.vscode/
+.idea/
+
+# ------------------------------------------------------------------------------
+# Python Runtimes & Dependencies
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+
+# Python Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ------------------------------------------------------------------------------
+# Microsoft Edge WebView2 User Data & Cache
+# ------------------------------------------------------------------------------
+*.exe.WebView2/
+EBWebView/
+
+# ------------------------------------------------------------------------------
+# Temporary Packages, Extraction Caches & Scratch Files
+# ------------------------------------------------------------------------------
+fdk-aac.tar.zst
+.BUILDINFO
+.MTREE
+.PKGINFO
+mingw64/
+scratch/
+apple_audio/
+
+# ------------------------------------------------------------------------------
+# Operating System & Diagnostic Logs
+# ------------------------------------------------------------------------------
+*.log
+*.tmp
+*.bak
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
