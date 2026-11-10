@@ -37,5 +37,7 @@
     <Page Remove="scratch\**" />
     <Compile Remove="docs\**" />
     <Page Remove="docs\**" />
+    <Compile Remove="packaging\**" />
+    <Page Remove="packaging\**" />
   </ItemGroup>
 </Project>
