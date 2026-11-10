@@ -42,7 +42,9 @@ $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 $iconPath = Join-Path $root "iphone-mirror-engine\packaging\pane.ico"
 $launcherCs = Join-Path $root "packaging\Launcher.cs"
 $portableLauncher = Join-Path $bundle "1pm.exe"
-& $csc /target:winexe /optimize+ /win32icon:$iconPath /out:$portableLauncher $launcherCs
+$launcherIconArg = "/win32icon:$iconPath"
+$launcherOutArg = "/out:$portableLauncher"
+& $csc /target:winexe /optimize+ $launcherIconArg $launcherOutArg $launcherCs
 
 # 6. Compress clean portable bundle into zip
 Write-Host "Compressing portable zip package..." -ForegroundColor Yellow
@@ -56,12 +58,26 @@ Write-Host "Creating embedded payload archive..." -ForegroundColor Yellow
 $payloadZip = Join-Path $dist "payload.zip"
 Compress-Archive -Path "$bundle\*" -DestinationPath $payloadZip -CompressionLevel Optimal
 
+if (-not (Test-Path $payloadZip)) {
+    throw "Payload archive was not generated at $payloadZip"
+}
+
 # 8. Compile 100% Single-File Standalone Executable 1pm.exe
 Write-Host "Compiling Standalone Single-File 1pm.exe..." -ForegroundColor Yellow
 $singleCs = Join-Path $root "packaging\SingleFileApp.cs"
 $standaloneExe = Join-Path $root "1pm.exe"
 if (Test-Path $standaloneExe) { Remove-Item -Force $standaloneExe }
-& $csc /target:winexe /optimize+ /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll /resource:$payloadZip,payload.zip /win32icon:$iconPath /out:$standaloneExe $singleCs
+
+$resourceArg = "/resource:$($payloadZip),payload.zip"
+$standaloneIconArg = "/win32icon:$iconPath"
+$standaloneOutArg = "/out:$standaloneExe"
+
+Write-Host "CSC Arguments: $resourceArg $standaloneIconArg $standaloneOutArg"
+& $csc /target:winexe /optimize+ /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll $resourceArg $standaloneIconArg $standaloneOutArg $singleCs
+
+if (-not (Test-Path $standaloneExe)) {
+    throw "Failed to compile standalone binary at $standaloneExe"
+}
 
 $finalSize = (Get-Item $standaloneExe).Length
 Write-Host "SUCCESS: Created Standalone 1pm.exe ($([math]::Round($finalSize / 1MB, 2)) MB)" -ForegroundColor Green
