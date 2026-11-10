@@ -1,0 +1,107 @@
+name: Build and Release 1pm
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Publish Release Package
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+          include-prerelease: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python Dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r iphone-mirror-engine/requirements.txt
+
+      - name: Restore and Publish WinUI 3 Application
+        shell: pwsh
+        run: |
+          dotnet restore 1pm.csproj
+          dotnet publish 1pm.csproj -c Release -r win-x64 --self-contained true -o dist/1pm
+
+      - name: Package Standalone Distribution
+        shell: pwsh
+        run: |
+          # Copy executable as 1pm.exe
+          if (Test-Path "dist/1pm/OnePM.exe") {
+            Copy-Item "dist/1pm/OnePM.exe" "dist/1pm/1pm.exe" -Force
+          }
+
+          # Copy Python CoreDevice Engine & WebCodecs frontend
+          Copy-Item -Recurse -Force "iphone-mirror-engine" "dist/1pm/"
+
+          # Ensure FDK-AAC native DLL is bundled
+          if (-not (Test-Path "dist/1pm/iphone-mirror-engine/handset/libfdk-aac-2.dll")) {
+            Write-Error "libfdk-aac-2.dll is missing from distribution bundle!"
+          }
+
+          # Copy docs, assets, launcher script, and documentation
+          Copy-Item "run-winui.ps1" "dist/1pm/" -Force
+          Copy-Item "README.md" "dist/1pm/" -Force
+          if (Test-Path "docs") {
+            Copy-Item -Recurse -Force "docs" "dist/1pm/"
+          }
+
+          # Compress to zip package
+          $ver = "${{ github.ref_name }}"
+          if (-not $ver -or $ver -eq "") { $ver = "latest" }
+          $zipName = "1pm-$ver-windows-x64.zip"
+          Compress-Archive -Path "dist/1pm/*" -DestinationPath $zipName -Force
+          Write-Host "Created release archive: $zipName"
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 1pm-windows-x64
+          path: 1pm-*-windows-x64.zip
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: 1pm-*-windows-x64.zip
+          name: 1pm ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## 1pm Release ${{ github.ref_name }} — Native iPhone Mirroring for Windows
+
+            ### 📦 Included in this Standalone Package:
+            - **Native WinUI 3 Client (`1pm.exe`)** (Pre-compiled with self-contained .NET Runtime).
+            - **Complete Python CoreDevice Backend Engine (`iphone-mirror-engine/`)** with WebCodecs H.265 Direct3D receiver & Universal HID Touch Digitizer.
+            - **Fraunhofer FDK-AAC Native Shared Library (`libfdk-aac-2.dll`)** for low-latency 48,000 Hz stereo audio forwarding.
+            - **One-Click PowerShell Launcher Script (`run-winui.ps1`)**.
+
+            ### 🚀 Quick Start:
+            1. Extract the downloaded `1pm-${{ github.ref_name }}-windows-x64.zip` archive.
+            2. Make sure you have **Apple Devices app** (from Microsoft Store) or **iTunes for Windows** installed (provides USB driver & Bonjour).
+            3. Connect your iPhone (iOS 17.4+ with Developer Mode enabled) and tap **"Trust This Computer"**.
+            4. Double-click `1pm.exe` (or run `.\run-winui.ps1` in PowerShell).

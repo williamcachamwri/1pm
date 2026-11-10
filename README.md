@@ -39,12 +39,19 @@ Brings the seamless **macOS Sequoia "iPhone Mirroring"** experience to Windows 1
 
 ### 3. Real-Time Gameplay Demo (60 FPS H.265 & Synchronized Audio)
 
-https://github.com/user-attachments/assets/demo_gameplay_60fps.mp4
+<div align="center">
+  <img src="docs/assets/demo_gameplay.gif" width="750" alt="1pm 60 FPS Real-Time Gameplay Demo" />
+  <br/><br/>
 
-> <video src="docs/assets/demo_gameplay_60fps.mp4" controls width="100%" poster="docs/assets/demo_landscape_game.jpg"></video>
->
-> 📁 **Direct Video Link**: [docs/assets/demo_gameplay_60fps.mp4](docs/assets/demo_gameplay_60fps.mp4)  
-> *<b>Video 1:</b> Live capture demonstrating sub-30ms touch-to-display latency during TFT gameplay. The user drags and drops game units in real-time with responsive mouse-to-touch mapping while synchronized 48 kHz stereo audio is decoded and routed to the Windows host soundcard.*
+  <video src="https://raw.githubusercontent.com/williamcachamwri/1pm/main/docs/assets/demo_gameplay_60fps.mp4" controls width="750" poster="docs/assets/demo_landscape_game.jpg">
+    <source src="https://raw.githubusercontent.com/williamcachamwri/1pm/main/docs/assets/demo_gameplay_60fps.mp4" type="video/mp4" />
+  </video>
+
+  <p>
+    📁 <b>Direct Media File:</b> <a href="https://raw.githubusercontent.com/williamcachamwri/1pm/main/docs/assets/demo_gameplay_60fps.mp4">demo_gameplay_60fps.mp4</a> (48 kHz AAC Audio)
+  </p>
+  <p><em><b>Video 1:</b> Live capture demonstrating sub-30ms touch-to-display latency during TFT gameplay. The user drags and drops game units in real-time with responsive mouse-to-touch mapping while synchronized 48 kHz stereo audio is decoded via Fraunhofer FDK-AAC and routed to the Windows host soundcard.</em></p>
+</div>
 
 ---
 
