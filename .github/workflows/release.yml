@@ -40,53 +40,177 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r iphone-mirror-engine/requirements.txt
 
-      - name: Restore and Publish WinUI 3 Application
+      - name: Publish WinUI 3 App and Bundle Assets
         shell: pwsh
         run: |
+          # 1. Publish self-contained WinUI 3 into bundle/bin subfolder
+          New-Item -ItemType Directory -Force -Path "dist/bundle/bin"
           dotnet restore 1pm.csproj
-          dotnet publish 1pm.csproj -c Release -r win-x64 --self-contained true -o dist/1pm
+          dotnet publish 1pm.csproj -c Release -r win-x64 --self-contained true -o "dist/bundle/bin"
 
-      - name: Package Standalone Distribution
-        shell: pwsh
-        run: |
-          # Copy executable as 1pm.exe
-          if (Test-Path "dist/1pm/OnePM.exe") {
-            Copy-Item "dist/1pm/OnePM.exe" "dist/1pm/1pm.exe" -Force
-          }
-
-          # Copy Python CoreDevice Engine & WebCodecs frontend
-          Copy-Item -Recurse -Force "iphone-mirror-engine" "dist/1pm/"
-
-          # Ensure FDK-AAC native DLL is bundled
-          if (-not (Test-Path "dist/1pm/iphone-mirror-engine/handset/libfdk-aac-2.dll")) {
-            Write-Error "libfdk-aac-2.dll is missing from distribution bundle!"
-          }
-
-          # Copy docs, assets, launcher script, and documentation
-          Copy-Item "run-winui.ps1" "dist/1pm/" -Force
-          Copy-Item "README.md" "dist/1pm/" -Force
+          # 2. Bundle Python CoreDevice engine, codecs, docs, and scripts
+          Copy-Item -Recurse -Force "iphone-mirror-engine" "dist/bundle/"
+          Copy-Item "README.md" "dist/bundle/" -Force
+          Copy-Item "run-winui.ps1" "dist/bundle/" -Force
           if (Test-Path "docs") {
-            Copy-Item -Recurse -Force "docs" "dist/1pm/"
+            Copy-Item -Recurse -Force "docs" "dist/bundle/"
           }
 
-          # Compress to zip package
+          # 3. Ensure FDK-AAC native DLL is bundled
+          if (-not (Test-Path "dist/bundle/iphone-mirror-engine/handset/libfdk-aac-2.dll")) {
+            Write-Error "libfdk-aac-2.dll is missing from bundle!"
+          }
+
+          # 4. Compile Root Launcher (1pm.exe) for clean portable folder
+          $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          $iconPath = "iphone-mirror-engine/packaging/pane.ico"
+          $launcherSource = @"
+          using System;
+          using System.Diagnostics;
+          using System.IO;
+          using System.Windows.Forms;
+
+          namespace OnePMLauncher
+          {
+              static class Program
+              {
+                  [STAThread]
+                  static void Main(string[] args)
+                  {
+                      try
+                      {
+                          string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                          string targetExe = Path.Combine(baseDir, "bin", "OnePM.exe");
+                          if (!File.Exists(targetExe)) targetExe = Path.Combine(baseDir, "bin", "1pm.exe");
+
+                          if (!File.Exists(targetExe))
+                          {
+                              MessageBox.Show("Cannot find 1pm binary in 'bin\\OnePM.exe'.\nPlease ensure all extracted files remain in the package.", "1pm - Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                              return;
+                          }
+
+                          ProcessStartInfo psi = new ProcessStartInfo
+                          {
+                              FileName = targetExe,
+                              Arguments = string.Join(" ", args),
+                              WorkingDirectory = Path.GetDirectoryName(targetExe),
+                              UseShellExecute = true
+                          };
+                          Process.Start(psi);
+                      }
+                      catch (Exception ex)
+                      {
+                          MessageBox.Show("Error: " + ex.Message, "1pm", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                      }
+                  }
+              }
+          }
+"@
+          Set-Content -Path "dist/Launcher.cs" -Value $launcherSource
+          & $csc /target:winexe /optimize+ /win32icon:$iconPath /out:dist/bundle/1pm.exe dist/Launcher.cs
+
+          # 5. Compress clean portable bundle into zip
           $ver = "${{ github.ref_name }}"
           if (-not $ver -or $ver -eq "") { $ver = "latest" }
-          $zipName = "1pm-$ver-windows-x64.zip"
-          Compress-Archive -Path "dist/1pm/*" -DestinationPath $zipName -Force
-          Write-Host "Created release archive: $zipName"
+          $zipName = "1pm-$ver-portable-windows-x64.zip"
+          Compress-Archive -Path "dist/bundle/*" -DestinationPath $zipName -Force
+          Write-Host "Created portable archive: $zipName"
 
-      - name: Upload Build Artifact
+          # 6. Compress bundle for single-file payload embedding
+          Compress-Archive -Path "dist/bundle/*" -DestinationPath "dist/payload.zip" -CompressionLevel Optimal
+
+          # 7. Compile 100% Single-File Standalone Executable 1pm.exe
+          $singleFileSource = @"
+          using System;
+          using System.Diagnostics;
+          using System.IO;
+          using System.IO.Compression;
+          using System.Reflection;
+          using System.Windows.Forms;
+
+          namespace OnePMSingleFile
+          {
+              static class Program
+              {
+                  [STAThread]
+                  static void Main(string[] args)
+                  {
+                      try
+                      {
+                          string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                          string installDir = Path.Combine(localApp, "1pm");
+                          string targetExe = Path.Combine(installDir, "bin", "OnePM.exe");
+                          string markerFile = Path.Combine(installDir, "version.marker");
+                          string version = "$ver";
+
+                          bool needExtract = !File.Exists(targetExe) || !File.Exists(markerFile);
+                          if (!needExtract)
+                          {
+                              try {
+                                  if (File.ReadAllText(markerFile).Trim() != version) needExtract = true;
+                              } catch { needExtract = true; }
+                          }
+
+                          if (needExtract)
+                          {
+                              if (Directory.Exists(installDir))
+                              {
+                                  try { Directory.Delete(installDir, true); } catch { }
+                              }
+                              Directory.CreateDirectory(installDir);
+
+                              Assembly assembly = Assembly.GetExecutingAssembly();
+                              using (Stream stream = assembly.GetManifestResourceStream("payload.zip"))
+                              {
+                                  if (stream == null)
+                                  {
+                                      MessageBox.Show("Internal error: embedded payload.zip resource not found.", "1pm - Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                      return;
+                                  }
+                                  using (ZipArchive archive = new ZipArchive(stream))
+                                  {
+                                      archive.ExtractToDirectory(installDir);
+                                  }
+                              }
+                              try { File.WriteAllText(markerFile, version); } catch { }
+                          }
+
+                          ProcessStartInfo psi = new ProcessStartInfo
+                          {
+                              FileName = targetExe,
+                              Arguments = string.Join(" ", args),
+                              WorkingDirectory = Path.GetDirectoryName(targetExe),
+                              UseShellExecute = true
+                          };
+                          Process.Start(psi);
+                      }
+                      catch (Exception ex)
+                      {
+                          MessageBox.Show("Failed to launch 1pm: " + ex.Message, "1pm - Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                      }
+                  }
+              }
+          }
+"@
+          Set-Content -Path "dist/SingleFileApp.cs" -Value $singleFileSource
+          & $csc /target:winexe /optimize+ /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll /resource:dist/payload.zip,payload.zip /win32icon:$iconPath /out:1pm.exe dist/SingleFileApp.cs
+          Write-Host "Created standalone single-file binary: 1pm.exe ($(Get-Item 1pm.exe | Select-Object -ExpandProperty Length) bytes)"
+
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: 1pm-windows-x64
-          path: 1pm-*-windows-x64.zip
+          name: 1pm-windows-release
+          path: |
+            1pm.exe
+            1pm-*-portable-windows-x64.zip
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: 1pm-*-windows-x64.zip
+          files: |
+            1pm.exe
+            1pm-*-portable-windows-x64.zip
           name: 1pm ${{ github.ref_name }}
           draft: false
           prerelease: false
@@ -94,14 +218,17 @@ jobs:
           body: |
             ## 1pm Release ${{ github.ref_name }} — Native iPhone Mirroring for Windows
 
-            ### 📦 Included in this Standalone Package:
-            - **Native WinUI 3 Client (`1pm.exe`)** (Pre-compiled with self-contained .NET Runtime).
-            - **Complete Python CoreDevice Backend Engine (`iphone-mirror-engine/`)** with WebCodecs H.265 Direct3D receiver & Universal HID Touch Digitizer.
-            - **Fraunhofer FDK-AAC Native Shared Library (`libfdk-aac-2.dll`)** for low-latency 48,000 Hz stereo audio forwarding.
-            - **One-Click PowerShell Launcher Script (`run-winui.ps1`)**.
+            ### 🚀 Download Options:
+            1. **`1pm.exe` (Single-File Standalone)**:
+               - **Chỉ 1 file duy nhất!** Tải về là nhấp đúp chạy ngay.
+               - Tự động giải nén môi trường và khởi chạy với biểu tượng ứng dụng chính thức.
+               - Không cần giải nén file zip, không có hàng trăm file DLL rác trong thư mục Downloads.
+            2. **`1pm-${{ github.ref_name }}-portable-windows-x64.zip` (Portable Package)**:
+               - Gói portable cấu trúc gọn gàng: File **`1pm.exe`** nằm ngay ở thư mục gốc để nhấp đúp dễ dàng.
+               - Toàn bộ runtime DLLs được giấu gọn gàng bên trong thư mục con `bin/`.
 
-            ### 🚀 Quick Start:
-            1. Extract the downloaded `1pm-${{ github.ref_name }}-windows-x64.zip` archive.
-            2. Make sure you have **Apple Devices app** (from Microsoft Store) or **iTunes for Windows** installed (provides USB driver & Bonjour).
-            3. Connect your iPhone (iOS 17.4+ with Developer Mode enabled) and tap **"Trust This Computer"**.
-            4. Double-click `1pm.exe` (or run `.\run-winui.ps1` in PowerShell).
+            ---
+            ### 📱 Yêu cầu hệ thống:
+            - **iOS**: iOS 17.4+ (Bật *Developer Mode* trong *Cài đặt → Quyền riêng tư & Bảo mật*).
+            - **Windows**: Windows 10/11 x64.
+            - **Dịch vụ Apple**: Đã cài đặt ứng dụng **Apple Devices** (Microsoft Store) hoặc **iTunes x64**.
