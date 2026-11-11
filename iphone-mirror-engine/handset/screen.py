@@ -259,15 +259,15 @@ def start_screen(udid: str | None, transport: str = "auto") -> dict:
     chosen = (udid or "").strip() or _only_udid(usb, wifi, transport)
     if not chosen:
         if transport == "wifi":
-            return _set(phase="idle", udid=None, url=None, error="Set up Wi-Fi once with the cable plugged in.")
-        return _set(phase="idle", udid=None, url=None, error="Connect the iPhone first.")
+            return _set(phase="idle", udid=None, url=None, error="Chưa ghép nối Wi-Fi. Hãy cắm cáp một lần và nhấn 'Ghép Wi-Fi' trong Cài đặt.")
+        return _set(phase="idle", udid=None, url=None, error="Hãy cắm cáp kết nối iPhone trước.")
 
     if transport == "auto":
         transport = "usb" if chosen in usb else "wifi"
     if transport == "usb" and chosen not in usb:
-        return _set(phase="error", udid=chosen, url=None, error="The iPhone is not on the cable. Plug it in or choose Wi-Fi.")
+        return _set(phase="error", udid=chosen, url=None, error="iPhone chưa kết nối qua cáp USB. Hãy cắm lại cáp hoặc chọn kết nối Wi-Fi.")
     if transport == "wifi" and chosen not in wifi:
-        return _set(phase="error", udid=chosen, url=None, error="Set up Wi-Fi once with the cable plugged in.")
+        return _set(phase="error", udid=chosen, url=None, error="Chưa ghép nối Wi-Fi cho thiết bị này. Hãy cắm cáp một lần và nhấn 'Ghép Wi-Fi' trong Cài đặt.")
     if transport == "usb" and developer_mode_enabled(chosen) is False:
         return _set(phase="error", udid=chosen, url=None, error=DEVELOPER_MODE_MESSAGE)
 
@@ -280,7 +280,7 @@ def start_screen(udid: str | None, transport: str = "auto") -> dict:
     stop_screen()
 
     with _LOCK:
-        note = "Looking for the iPhone on Wi-Fi…" if transport == "wifi" else None
+        note = "Đang tìm kiếm iPhone trên mạng Wi-Fi... Hãy mở khóa iPhone." if transport == "wifi" else None
         _STATE.update(phase="starting", udid=chosen, url=None, error=None, note=note, transport=transport)
     threading.Thread(target=_run, args=(chosen, transport), name="handset-screen", daemon=True).start()
     return screen_status()
@@ -297,7 +297,7 @@ def _run(udid: str, transport: str) -> None:
         with _LOCK:
             _CURRENT_TASK = task
         loop.run_until_complete(task)
-        _set(phase="idle", udid=udid, url=None, error="The screen stream stopped.", transport=transport)
+        _set(phase="idle", udid=udid, url=None, error="Luồng phản chiếu màn hình đã dừng.", transport=transport)
     except (asyncio.CancelledError, KeyboardInterrupt):
         _set(phase="idle", udid=udid, url=None, error=None, transport=transport)
     except Exception as error:
@@ -420,17 +420,17 @@ def _plain(error: Exception) -> str:
     if name == "WifiNotFoundError":
         return text
     if name in {"ConnectionFailedToUsbmuxdError", "MuxError"} or "27015" in text or "usbmux" in text.lower():
-        return "Apple Mobile Device Service is not running. Install Apple Devices, reconnect the iPhone, and tap Trust."
+        return "Dịch vụ Apple Mobile Device Service chưa chạy. Hãy cài đặt Apple Devices hoặc iTunes và cắm lại cáp."
     if name == "UserspaceTunnelUnavailableError":
-        return "This phone did not open the display tunnel. It needs iOS 17.4 or later, Trust, and Developer Mode."
+        return "iPhone không mở được đường truyền phản chiếu. Cần iOS 17.4 trở lên, chọn 'Tin cậy máy tính' và bật Chế độ Nhà phát triển."
     if "CoreDeviceProxy" in text or name == "InvalidServiceError":
-        return "The phone did not offer its display tunnel. Turn on Developer Mode, unlock the phone, and tap Trust."
+        return "iPhone không cung cấp dịch vụ hiển thị. Hãy bật Chế độ Nhà phát triển, mở khóa màn hình và chọn 'Tin cậy'."
     if name == "DeviceNotFoundError":
-        return "The iPhone is not on the cable. Plug it in, unlock it, and press Show screen again."
+        return "Không tìm thấy iPhone trên cổng USB. Hãy cắm lại cáp, mở khóa màn hình và nhấn Thử lại."
     if name in {"DeveloperModeIsNotEnabledError", "DeveloperModeError"}:
         return DEVELOPER_MODE_MESSAGE
     if "PasswordProtected" in text or "locked" in text.lower():
-        return "Unlock the iPhone and keep it unlocked, then press Show screen again."
+        return "Vui lòng mở khóa màn hình iPhone và giữ màn hình luôn sáng, sau đó thử lại."
     if "PairingDialog" in text or "Trust" in text:
-        return "Unlock the iPhone and tap Trust, then show the screen again."
+        return "Vui lòng mở khóa iPhone và chọn 'Tin cậy máy tính này', sau đó thử lại."
     return text

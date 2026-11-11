@@ -449,6 +449,9 @@ public sealed partial class MainWindow : Window
             ConnectingOverlay.Visibility = Visibility.Visible;
             OverlayTitleText.Text = "Đang kết nối iPhone...";
 
+            string currentTransportText = (screen?.Transport ?? selectedTransport) == "wifi" ? "Wi-Fi" : "USB";
+            DeviceTitleText.Text = $"{deviceDisplayName} ({currentTransportText})";
+
             string note = screen?.Note ?? (selectedTransport == "wifi"
                 ? "Đang tìm kiếm iPhone trên mạng Wi-Fi... Đảm bảo iPhone và PC cùng Wi-Fi và iPhone đang mở khóa."
                 : "Đang kết nối qua cáp USB... Đảm bảo đã cắm cáp và chọn 'Tin cậy máy tính'.");
@@ -465,6 +468,10 @@ public sealed partial class MainWindow : Window
             ConnectingSpinner.IsActive = false;
             ConnectingOverlay.Visibility = Visibility.Visible;
             OverlayTitleText.Text = "Không thể kết nối iPhone";
+
+            string currentTransportText = (screen?.Transport ?? selectedTransport) == "wifi" ? "Wi-Fi" : "USB";
+            DeviceTitleText.Text = $"{deviceDisplayName} ({currentTransportText})";
+
             OverlaySubtitleText.Text = errorMsg;
             return;
         }

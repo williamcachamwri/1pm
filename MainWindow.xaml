@@ -324,7 +324,9 @@
                             Foreground="#8E8E93"
                             FontSize="12.5"
                             TextAlignment="Center"
-                            TextWrapping="Wrap" />
+                            TextWrapping="Wrap"
+                            MaxWidth="320"
+                            LineHeight="18" />
                         <Button
                             x:Name="RetryConnectBtn"
                             Content="Thử kết nối ngay"
