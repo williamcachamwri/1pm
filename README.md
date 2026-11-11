@@ -3,7 +3,7 @@
 <div align="center">
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011%20(x64%2C%20ARM64)-0078D6?logo=windows)](https://microsoft.com/windows)
-[![iOS Target](https://img.shields.io/badge/iOS-17.4%20%7C%2017.5%20%7C%2018.x-black?logo=apple)](https://apple.com/ios)
+[![iOS Target](https://img.shields.io/badge/iOS-iOS%2027-black?logo=apple)](https://apple.com/ios)
 [![Framework](https://img.shields.io/badge/UI-WinUI%203%20%2F%20Windows%20App%20SDK%201.6-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Runtime](https://img.shields.io/badge/.NET-10.0%20%2F%208.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Engine](https://img.shields.io/badge/Engine-Python%203.11%2B%20AsyncIO-3776AB?logo=python)](https://python.org/)
@@ -12,6 +12,9 @@
 
 **A high-performance, ultra-low latency iPhone screen and audio mirroring client for Windows.**  
 Brings the seamless **macOS Sequoia "iPhone Mirroring"** experience to Windows 10/11 using native WinUI 3, hardware-accelerated WebCodecs H.265 decoding, Fraunhofer FDK-AAC audio forwarding, and direct Apple CoreDevice RemoteXPC communication over USB and Wi-Fi.
+
+> [!IMPORTANT]
+> **Lưu ý hệ điều hành**: App này chỉ hỗ trợ **iOS 27**. Các phiên bản hệ điều hành cũ hơn không được hỗ trợ.
 
 [Features](#key-features) • [Showcase](#visual-showcase) • [Architecture](#technical-architecture) • [Requirements](#system-requirements) • [Build Guide](#compilation--build-guide) • [Troubleshooting](#troubleshooting)
 
@@ -118,7 +121,7 @@ Brings the seamless **macOS Sequoia "iPhone Mirroring"** experience to Windows 1
 
 ```mermaid
 flowchart TD
-    subgraph iOS["iPhone (iOS 17.4+ / 18.x)"]
+    subgraph iOS["iPhone (iOS 27)"]
         direction TB
         iOS_Screen["Screen & Audio Capture"]
         iOS_CoreDevice["CoreDevice Daemon (RSD / Port 32498)"]
@@ -228,7 +231,7 @@ Apple outputs audio using **AAC-ELD (Enhanced Low Delay)** with 480 samples per 
 ### 1. iOS Device Requirements
 | Specification | Requirement | Details |
 |:---|:---|:---|
-| **Operating System** | **iOS 17.4 or newer** | iOS 17.4, 17.5, iOS 18.0, 18.1, 18.2+ supported. *(iOS 17.0–17.3 do not support the required CoreDevice DisplayService protocol).* |
+| **Operating System** | **iOS 27** | App này chỉ hỗ trợ iOS 27. *(Các phiên bản hệ điều hành cũ hơn không được hỗ trợ).* |
 | **Developer Mode** | **Enabled** | Must be activated under: `Settings` → `Privacy & Security` → `Developer Mode` → `On` (device will reboot). |
 | **Trust Relationship** | **Trusted** | Device must trust the Windows host PC ("Trust This Computer" prompt accepted with passcode). |
 | **Hardware** | iPhone 11 series through iPhone 16 Pro Max | Dynamic Island and classic notch models fully supported. |
