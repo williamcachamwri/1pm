@@ -3,20 +3,22 @@
 <div align="center">
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011%20(x64%2C%20ARM64)-0078D6?logo=windows)](https://microsoft.com/windows)
-[![iOS Target](https://img.shields.io/badge/iOS-iOS%2027-black?logo=apple)](https://apple.com/ios)
+[![iOS Target](https://img.shields.io/badge/iOS-17.4%2B%20%2F%2018.x-black?logo=apple)](https://apple.com/ios)
 [![Framework](https://img.shields.io/badge/UI-WinUI%203%20%2F%20Windows%20App%20SDK%201.6-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Runtime](https://img.shields.io/badge/.NET-10.0%20%2F%208.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Engine](https://img.shields.io/badge/Engine-Python%203.11%2B%20AsyncIO-3776AB?logo=python)](https://python.org/)
 [![Video Codec](https://img.shields.io/badge/Video-H.265%20%2F%20HEVC%20%40%2060fps-FF6F00)](#video-pipeline)
-[![Audio Codec](https://img.shields.io/badge/Audio-Fraunhofer%20FDK--AAC%2048kHz-00ACC1)](#audio-pipeline)
+[![Audio Codec](https://img.shields.io/badge/Audio-Fraunhofer%20FDK--AAC%2048kHz-00ACC1)](#audio-pipeline--elastic-ring-buffer)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 **A high-performance, ultra-low latency iPhone screen and audio mirroring client for Windows.**  
-Brings the seamless **macOS Sequoia "iPhone Mirroring"** experience to Windows 10/11 using native WinUI 3, hardware-accelerated WebCodecs H.265 decoding, Fraunhofer FDK-AAC audio forwarding, and direct Apple CoreDevice RemoteXPC communication over USB and Wi-Fi.
+Brings the seamless **macOS Sequoia "iPhone Mirroring"** experience to Windows 10 and Windows 11 using native WinUI 3, hardware-accelerated WebCodecs H.265 decoding, Fraunhofer FDK-AAC audio forwarding, and direct Apple CoreDevice RemoteXPC communication over USB and Wi-Fi.
 
 > [!IMPORTANT]
-> **Lưu ý hệ điều hành**: App này chỉ hỗ trợ **iOS 27**. Các phiên bản hệ điều hành cũ hơn không được hỗ trợ.
+> **iOS Compatibility Requirement**: 1pm strictly requires an iPhone running **iOS 17.4 or newer** (including iOS 17.4, 17.5, 17.6, iOS 18.0, 18.1, 18.2+).  
+> Prior versions (iOS 17.0–17.3, iOS 16, iOS 15, and older devices such as iPhone 7/8/X) **do not support** Apple's internal `com.apple.coredevice.displayservice` protocol and Developer Mode tunneling.
 
-[Features](#key-features) • [Showcase](#visual-showcase) • [Architecture](#technical-architecture) • [Requirements](#system-requirements) • [Build Guide](#compilation--build-guide) • [Troubleshooting](#troubleshooting)
+[Features](#key-features) • [Showcase](#visual-showcase) • [Architecture](#technical-architecture) • [Requirements](#system-requirements) • [Build Guide](#compilation--build-guide) • [Setup](#first-time-device-setup) • [Troubleshooting](#troubleshooting)
 
 </div>
 
@@ -27,7 +29,7 @@ Brings the seamless **macOS Sequoia "iPhone Mirroring"** experience to Windows 1
 ### 1. High-Performance Portrait Mirroring (USB Transport)
 <div align="center">
   <img src="docs/assets/demo_portrait_usb.jpg" width="420" alt="1pm Portrait Mirroring over USB" />
-  <p><em><b>Figure 1:</b> 1pm mirroring an iPhone running iOS in native Portrait mode over high-speed USB (60 FPS). Displays floating titanium frame, macOS Sequoia-style top pill control bar, Dynamic Island status indicator, and real-time audio forwarding active badge.</em></p>
+  <p><em><b>Figure 1:</b> 1pm mirroring an iPhone running iOS in native Portrait mode over high-speed USB (60 FPS). Displays floating titanium chassis, macOS Sequoia-style top pill control bar, Dynamic Island status indicator, and real-time audio forwarding active badge.</em></p>
 </div>
 
 ---
@@ -97,7 +99,7 @@ Brings the seamless **macOS Sequoia "iPhone Mirroring"** experience to Windows 1
 - **High-Definition Audio Forwarding (Fraunhofer FDK-AAC)**:
   - Captures Apple's raw AAC-ELD audio stream (48,000 Hz, 480 samples/frame, 24-bit stereo) over RTP.
   - Native C decoding via `libfdk-aac-2.dll` with custom dynamic range control (`AAC_PCM_LIMITER_ENABLE = 0`, `AAC_DRC_REFERENCE_LEVEL = -1`).
-  - Web Audio API custom `ScriptProcessorNode` / `AudioWorklet` with an **Elastic Ring Buffer** eliminating packet jitter, pops, and underruns.
+  - Web Audio API custom `ScriptProcessorNode` / `AudioWorklet` with an **Elastic Ring Buffer** eliminating packet jitter, pops, and buffer underruns.
   - **Dynamic Audio Destination Selector**: Route audio to Windows host speakers (with iPhone speakers muted) or retain playback on the iPhone.
 
 - **Multi-Touch & Universal HID Digitizer**:
@@ -111,6 +113,7 @@ Brings the seamless **macOS Sequoia "iPhone Mirroring"** experience to Windows 1
 - **Dual-Transport Architecture (USB 3.0 / 2.0 & Wi-Fi Bonjour)**:
   - Plug-and-play USB connection via Apple Mobile Device `usbmuxd`.
   - Seamless zero-configuration wireless mirroring over local Wi-Fi via Apple RemotePairing and Bonjour mDNS (`mdnsresponder`).
+  - Automatic IPv4 LAN prioritization and Windows IDNA IPv6 compatibility handling.
 
 - **Apple ProMotion Display Stall Prevention**:
   - Includes a specialized kernel monkey-patch preventing `pymobiledevice3` watchdog crashes caused by iOS variable refresh rate (VRR / ProMotion) power-saving halts on static screens.
@@ -121,7 +124,7 @@ Brings the seamless **macOS Sequoia "iPhone Mirroring"** experience to Windows 1
 
 ```mermaid
 flowchart TD
-    subgraph iOS["iPhone (iOS 27)"]
+    subgraph iOS["iPhone (iOS 17.4+ / iOS 18.x)"]
         direction TB
         iOS_Screen["Screen & Audio Capture"]
         iOS_CoreDevice["CoreDevice Daemon (RSD / Port 32498)"]
@@ -231,9 +234,9 @@ Apple outputs audio using **AAC-ELD (Enhanced Low Delay)** with 480 samples per 
 ### 1. iOS Device Requirements
 | Specification | Requirement | Details |
 |:---|:---|:---|
-| **Operating System** | **iOS 27** | App này chỉ hỗ trợ iOS 27. *(Các phiên bản hệ điều hành cũ hơn không được hỗ trợ).* |
-| **Developer Mode** | **Enabled** | Must be activated under: `Settings` → `Privacy & Security` → `Developer Mode` → `On` (device will reboot). |
-| **Trust Relationship** | **Trusted** | Device must trust the Windows host PC ("Trust This Computer" prompt accepted with passcode). |
+| **Operating System** | **iOS 17.4 or newer** | Supported on iOS 17.4, 17.5, 17.6, iOS 18.0, 18.1, 18.2+. *(iOS 17.0–17.3, iOS 16, iOS 15, and older versions do not contain the required CoreDevice DisplayService protocol).* |
+| **Developer Mode** | **Enabled** | Must be activated under: `Settings` → `Privacy & Security` → `Developer Mode` → `On` (device will restart). |
+| **Trust Relationship** | **Trusted** | Device must trust the Windows host PC ("Trust This Computer" prompt accepted with device passcode). |
 | **Hardware** | iPhone 11 series through iPhone 16 Pro Max | Dynamic Island and classic notch models fully supported. |
 
 ### 2. Windows Host Requirements
@@ -244,7 +247,7 @@ Apple outputs audio using **AAC-ELD (Enhanced Low Delay)** with 480 samples per 
 | **.NET SDK** | .NET 10.0 SDK or .NET 8.0 SDK | Visual Studio 2022 / Build Tools with *.NET Desktop Development* workload. |
 | **Python** | Python 3.10 to 3.12 (x64) | Standard CPython (64-bit). |
 | **WebView2** | Microsoft Edge WebView2 Evergreen Runtime | Pre-installed by default on Windows 10 and 11. |
-| **Audio DLL** | `libfdk-aac-2.dll` | Included in repository under `iphone-mirror-engine/`. |
+| **Audio DLL** | `libfdk-aac-2.dll` | Included in repository under `iphone-mirror-engine/handset/`. |
 
 ---
 
@@ -268,7 +271,7 @@ python -m venv .venv
 pip install -r iphone-mirror-engine/requirements.txt
 ```
 
-Verify that `libfdk-aac-2.dll` is present in `iphone-mirror-engine/handset/` or `iphone-mirror-engine/`:
+Verify that `libfdk-aac-2.dll` is present in `iphone-mirror-engine/handset/`:
 ```powershell
 Test-Path iphone-mirror-engine/handset/libfdk-aac-2.dll
 ```
@@ -310,8 +313,8 @@ Launch the executable directly. The WinUI 3 frontend automatically detects and s
 ## First-Time Device Setup
 
 1. **Enable Developer Mode on iOS**:
-   - Navigate to `Settings` → `Privacy & Security` → `Developer Mode`.
-   - Toggle to **On**, restart the device, and confirm Developer Mode when prompted after reboot.
+   - On your iPhone, navigate to `Settings` → `Privacy & Security` → `Developer Mode`.
+   - Toggle Developer Mode to **On**, restart the device, and confirm Developer Mode when prompted after reboot.
 2. **Connect via USB Cable**:
    - Plug your iPhone into a USB 3.0 / USB-C port on your Windows PC.
    - Unlock your iPhone and tap **"Trust"** on the "Trust This Computer?" prompt, then enter your passcode.
@@ -319,7 +322,8 @@ Launch the executable directly. The WinUI 3 frontend automatically detects and s
    - The application will automatically detect your iPhone's UDID, spin up the CoreDevice DisplayService, and stream the screen at 60 FPS.
 4. **Enable Wi-Fi Pairing (Optional)**:
    - While connected over USB, open the **Settings** flyout (⚙️ icon on the top pill bar).
-   - Click **"Ghép nối Wi-Fi một lần qua cáp"** (Pair Wi-Fi via Cable).
+   - Click **"Ghép Wi-Fi"** (Pair Wi-Fi via Cable) to write the RemotePairing record.
+   - Set your Windows network profile for that Wi-Fi connection to **Private network** in Windows Settings so Bonjour mDNS (UDP port 5353) is not blocked by Windows Firewall.
    - Once paired, you can unplug the USB cable and switch transport to **Wi-Fi** anytime.
 
 ---
@@ -336,7 +340,7 @@ Launch the executable directly. The WinUI 3 frontend automatically detects and s
 | **Volume Up / Down** | Left Chassis Physical Buttons | Hardware volume adjustment. |
 | **Lock / Wake** | Right Chassis Physical Button | Locks or wakes the iPhone display. |
 | **Keyframe Refresh (PLI)** | Left Action Button | Forces immediate H.265 Picture Loss Indication keyframe refresh. |
-| **Vietnamese Typing** | Keyboard Icon / Telex / VNI | Direct text input with full UniKey / EVKey support. |
+| **Text Typing** | Keyboard Input | Direct text input forwarding with IME support (English, Telex, VNI, etc.). |
 
 ---
 
@@ -374,6 +378,11 @@ The embedded Python engine exposes a local loopback HTTP and WebSocket interface
 ### No Sound Forwarded to Windows
 - Check the Settings Flyout and ensure **"Đầu ra âm thanh"** (Audio Output) is set to **"Truyền lên Windows (Loa PC)"**.
 - Verify that `libfdk-aac-2.dll` is present in `iphone-mirror-engine/handset/`.
+
+### Wi-Fi Discovery Fails
+- Ensure your PC and iPhone are connected to the exact same Wi-Fi network (avoid guest Wi-Fi networks with client isolation).
+- In Windows Settings → *Network & internet* → *Wi-Fi*, set the network profile to **Private network** so incoming Bonjour mDNS multicast on UDP port 5353 is allowed through Windows Defender Firewall.
+- Keep the iPhone screen unlocked during initial connection.
 
 ### ProMotion 120Hz Screen Freezes on Static Content
 - iPhone 15 Pro / 16 Pro models dynamically reduce display refresh rate to 1 Hz when the screen is static.
