@@ -378,6 +378,14 @@ The embedded Python engine exposes a local loopback HTTP and WebSocket interface
 
 ---
 
+## Credits & Acknowledgements
+
+- Core mirror engine adapted and extended from [pane-iphone-mirror-windows](https://github.com/teyboxv1/pane-iphone-mirror-windows) by [@teyboxv1](https://github.com/teyboxv1).
+- Tunneling and device communication powered by [pymobiledevice3](https://github.com/doronz88/pymobiledevice3).
+- Low-latency AAC-ELD audio decoding via [Fraunhofer FDK AAC](https://github.com/mstorsjo/fdk-aac).
+
+---
+
 ## License
 
-This project is licensed under the [MIT License](LICENSE). iOS, macOS, iPhone, AirPlay, and Apple are registered trademarks of Apple Inc. This software is an independent open-source project and is not affiliated with, endorsed by, or sponsored by Apple Inc.
+This project is licensed under the [MIT License](LICENSE) with attribution to [teyboxv1/pane-iphone-mirror-windows](https://github.com/teyboxv1/pane-iphone-mirror-windows). iOS, macOS, iPhone, AirPlay, and Apple are registered trademarks of Apple Inc. This software is an independent open-source project and is not affiliated with, endorsed by, or sponsored by Apple Inc.
