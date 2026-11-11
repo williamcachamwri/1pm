@@ -53,6 +53,7 @@ public sealed partial class MainWindow : Window
     private bool _isStartingScreen;
     private string? _activeUdid;
     private string? _lastNavigatedUrl;
+    private double _lastDpiScale = 1.0;
 
     public MainWindow()
     {
@@ -68,6 +69,7 @@ public sealed partial class MainWindow : Window
 
     /// <summary>
     /// Cấu hình cửa sổ WinUI 3 dạng Floating không viền tiêu đề chuẩn macOS.
+    /// Tự động thích ứng với DPI của mọi màn hình (100%, 125%, 150%, 175%, 200% trên 4K Windows 11).
     /// </summary>
     private void ConfigureFloatingIphoneWindow()
     {
@@ -96,20 +98,60 @@ public sealed partial class MainWindow : Window
         style &= ~(WS_BORDER | WS_CAPTION | WS_THICKFRAME);
         SetWindowLongPtr(_hwnd, GWL_STYLE, new IntPtr(style));
 
+        // Mở rộng frame DWM vào toàn bộ client area để DWM render trong suốt mượt mà, khử răng cưa
+        MARGINS margins = new MARGINS { cxLeftWidth = -1, cxRightWidth = -1, cyTopHeight = -1, cyBottomHeight = -1 };
+        DwmExtendFrameIntoClientArea(_hwnd, ref margins);
+
         // Tắt viền DWM của Windows 11
         ApplyWindows11BorderlessChrome(_hwnd);
 
-        _appWindow.Resize(new SizeInt32(PortraitWidth, PortraitHeight));
-        ApplyWindowShape(PortraitWidth, PortraitHeight);
+        // Khởi tạo kích thước theo đúng tỷ lệ DPI của màn hình (hỗ trợ 100%, 125%, 150%, 175%, 200% trên màn 4K)
+        _lastDpiScale = GetDpiScale();
+        UpdatePhysicalWindowLayout(PortraitWidth, PortraitHeight);
         PositionWindowNearRightEdge();
+
+        // Lắng nghe thay đổi DPI khi kéo cửa sổ giữa các màn hình khác nhau hoặc thay đổi Display Scaling
+        RootGrid.Loaded += (s, e) =>
+        {
+            if (RootGrid.XamlRoot != null)
+            {
+                _lastDpiScale = RootGrid.XamlRoot.RasterizationScale;
+                RootGrid.XamlRoot.Changed += XamlRoot_Changed;
+            }
+        };
+    }
+
+    private void XamlRoot_Changed(XamlRoot sender, XamlRootChangedEventArgs args)
+    {
+        double currentScale = sender.RasterizationScale;
+        if (Math.Abs(currentScale - _lastDpiScale) > 0.001)
+        {
+            _lastDpiScale = currentScale;
+            bool isLandscape = _currentRotationDeg == 90 || _currentRotationDeg == 270;
+            int currentW = isLandscape ? LandscapeWidth : PortraitWidth;
+            int currentH = isLandscape ? LandscapeHeight : PortraitHeight;
+            UpdatePhysicalWindowLayout(currentW, currentH);
+        }
     }
 
     private void PositionWindowNearRightEdge()
     {
         if (_appWindow == null) return;
         DisplayArea displayArea = DisplayArea.GetFromWindowId(_appWindow.Id, DisplayAreaFallback.Primary);
-        int x = displayArea.WorkArea.Width - PortraitWidth - 48;
-        int y = Math.Max(40, (displayArea.WorkArea.Height - PortraitHeight) / 2);
+
+        double scale = GetDpiScale();
+        int physPillH = (int)Math.Round(PillHeight * scale);
+        int physPillGap = (int)Math.Round(PillGap * scale);
+        int physPhoneH = (int)Math.Round(PhoneHeight * scale);
+        int physPhoneW = (int)Math.Round(PhoneWidth * scale);
+        int physPillW = (int)Math.Round(PillWidth * scale);
+
+        int physWindowW = Math.Max(physPillW, physPhoneW);
+        int physWindowH = physPillH + physPillGap + physPhoneH;
+        int marginX = (int)Math.Round(48 * scale);
+
+        int x = displayArea.WorkArea.Width - physWindowW - marginX;
+        int y = Math.Max((int)Math.Round(40 * scale), (displayArea.WorkArea.Height - physWindowH) / 2);
         _appWindow.Move(new PointInt32(x, y));
     }
 
@@ -835,11 +877,7 @@ public sealed partial class MainWindow : Window
         OuterTitaniumFrame.Width = isLandscape ? LandscapeWidth : PhoneWidth;
         OuterTitaniumFrame.Height = isLandscape ? PhoneWidth : PhoneHeight;
 
-        if (_appWindow != null)
-        {
-            _appWindow.Resize(new SizeInt32(currentW, currentH));
-            ApplyWindowShape(currentW, currentH);
-        }
+        UpdatePhysicalWindowLayout(currentW, currentH);
 
         string angleName = _currentRotationDeg switch
         {
@@ -1355,6 +1393,9 @@ public sealed partial class MainWindow : Window
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref uint attrValue, int attrSize);
 
     [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
     private static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
 
     [DllImport("gdi32.dll")]
@@ -1371,28 +1412,83 @@ public sealed partial class MainWindow : Window
 
     private const int RGN_OR = 2;
 
-    private void ApplyWindowShape(int width, int height)
+    /// <summary>
+    /// Lấy tỷ lệ scale DPI hiện tại của cửa sổ (1.0 = 100%, 1.25 = 125%, 1.5 = 150%, 2.0 = 200% trên 4K).
+    /// </summary>
+    private double GetDpiScale()
+    {
+        if (_hwnd != IntPtr.Zero)
+        {
+            uint dpi = GetDpiForWindow(_hwnd);
+            if (dpi > 0) return dpi / 96.0;
+        }
+        if (RootGrid?.XamlRoot != null)
+        {
+            return RootGrid.XamlRoot.RasterizationScale;
+        }
+        return 1.0;
+    }
+
+    /// <summary>
+    /// Đồng bộ kích thước vật lý (Physical Pixels) của AppWindow và GDI Window Region
+    /// theo đúng tỷ lệ DPI hiện tại của màn hình (100%, 125%, 150%, 175%, 200%, 250% trên màn 4K Windows 11).
+    /// </summary>
+    private void UpdatePhysicalWindowLayout(int dipWidth, int dipHeight)
+    {
+        if (_hwnd == IntPtr.Zero || _appWindow == null) return;
+
+        double scale = GetDpiScale();
+        bool isLandscape = _currentRotationDeg == 90 || _currentRotationDeg == 270;
+        int dipPhoneW = isLandscape ? LandscapeWidth : PhoneWidth;
+        int dipPhoneH = isLandscape ? PhoneWidth : PhoneHeight;
+
+        int physPillH = (int)Math.Round(PillHeight * scale);
+        int physPillGap = (int)Math.Round(PillGap * scale);
+        int physPhoneH = (int)Math.Round(dipPhoneH * scale);
+        int physPhoneW = (int)Math.Round(dipPhoneW * scale);
+        int physPillW = (int)Math.Round(PillWidth * scale);
+
+        int physWindowW = Math.Max(physPillW, physPhoneW);
+        int physWindowH = physPillH + physPillGap + physPhoneH;
+
+        _appWindow.Resize(new SizeInt32(physWindowW, physWindowH));
+        ApplyWindowShape(physWindowW, physWindowH, physPhoneW, physPhoneH, physPillW, physPillH, physPillGap, scale);
+    }
+
+    private void ApplyWindowShape(int physWindowW, int physWindowH, int physPhoneW, int physPhoneH, int physPillW, int physPillH, int physPillGap, double scale)
     {
         if (_hwnd == IntPtr.Zero) return;
         try
         {
-            bool isLandscape = _currentRotationDeg == 90 || _currentRotationDeg == 270;
-            int phoneW = isLandscape ? LandscapeWidth : PhoneWidth;
-            int phoneH = isLandscape ? PhoneWidth : PhoneHeight;
+            int physPillX = (physWindowW - physPillW) / 2;
+            int physPillY = 0;
+            int physPhoneX = (physWindowW - physPhoneW) / 2;
+            int physPhoneY = physPillH + physPillGap;
+
+            int physPhoneCorner = (int)Math.Round(88 * scale);
+            int physPillCorner = physPillH;
 
             // 1. Vùng thanh điều khiển macOS dạng Pill ở trên cùng
-            int pillW = PillWidth;
-            int pillH = PillHeight;
-            int pillX = (width - pillW) / 2;
-            int pillY = 0;
-            IntPtr rgnPill = CreateRoundRectRgn(pillX, pillY, pillX + pillW, pillY + pillH, pillH, pillH);
+            IntPtr rgnPill = CreateRoundRectRgn(
+                physPillX,
+                physPillY,
+                physPillX + physPillW + 1,
+                physPillY + physPillH + 1,
+                physPillCorner,
+                physPillCorner
+            );
 
             // 2. Vùng thân máy iPhone bên dưới (cách đỉnh một khoảng PillHeight + PillGap)
-            int phoneX = (width - phoneW) / 2;
-            int phoneY = PillHeight + PillGap;
-            IntPtr rgnPhone = CreateRoundRectRgn(phoneX, phoneY, phoneX + phoneW, phoneY + phoneH, 88, 88);
+            IntPtr rgnPhone = CreateRoundRectRgn(
+                physPhoneX,
+                physPhoneY,
+                physPhoneX + physPhoneW + 1,
+                physPhoneY + physPhoneH + 1,
+                physPhoneCorner,
+                physPhoneCorner
+            );
 
-            // 3. Gộp 2 vùng thành một window region duy nhất (khoảng trống 8px và viền ngoài hoàn toàn trong suốt)
+            // 3. Gộp 2 vùng thành một window region duy nhất (khoảng trống giữa và viền ngoài hoàn toàn trong suốt)
             IntPtr rgnCombined = CreateRectRgn(0, 0, 0, 0);
             _ = CombineRgn(rgnCombined, rgnPill, rgnPhone, RGN_OR);
             _ = SetWindowRgn(_hwnd, rgnCombined, true);

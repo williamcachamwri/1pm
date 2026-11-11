@@ -126,7 +126,7 @@
                         ToolTipService.ToolTip="Âm thanh: Đang phát trên iPhone (Nhấp để truyền lên Windows • Chuột phải để chọn)">
                         <FontIcon x:Name="AudioIcon" Glyph="&#xE74F;" FontSize="13" Foreground="#D0D0D5" />
                         <Button.ContextFlyout>
-                            <MenuFlyout Placement="Bottom">
+                            <MenuFlyout Placement="Bottom" ShouldConstrainToRootBounds="False">
                                 <MenuFlyoutItem x:Name="AudioIphoneMenuItem" Text="📱 Phát trên iPhone (Mặc định)" Click="AudioIphone_Click" />
                                 <MenuFlyoutItem x:Name="AudioWindowsMenuItem" Text="💻 Truyền lên Windows (Loa PC)" Click="AudioWindows_Click" />
                             </MenuFlyout>
@@ -144,7 +144,7 @@
                         ToolTipService.ToolTip="Xoay màn hình full 4 hướng (Nhấp: xoay 90° • Chuột phải: chọn góc)">
                         <FontIcon Glyph="&#xE7AD;" FontSize="13" Foreground="#D0D0D5" />
                         <Button.ContextFlyout>
-                            <MenuFlyout Placement="Bottom">
+                            <MenuFlyout Placement="Bottom" ShouldConstrainToRootBounds="False">
                                 <MenuFlyoutItem Text="📱 0° - Màn hình dọc chuẩn (Portrait)" Click="Rotate0_Click" />
                                 <MenuFlyoutItem Text="🔄 90° - Xoay ngang sang phải" Click="Rotate90_Click" />
                                 <MenuFlyoutItem Text="🙃 180° - Dọc lộn ngược (Upside Down)" Click="Rotate180_Click" />
@@ -199,7 +199,7 @@
                         ToolTipService.ToolTip="Kết nối &amp; Thiết bị (Backend Python)">
                         <FontIcon Glyph="&#xE713;" FontSize="13" Foreground="#D0D0D5" />
                         <Button.Flyout>
-                            <Flyout Placement="Bottom">
+                            <Flyout Placement="Bottom" ShouldConstrainToRootBounds="False">
                                 <StackPanel Width="270" Spacing="12">
                                     <TextBlock Text="Cài đặt kết nối iPhone" FontWeight="SemiBold" FontSize="14" />
 
